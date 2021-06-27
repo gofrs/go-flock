@@ -195,3 +195,26 @@ func (f *Flock) reopenFDOnError(err error) (bool, error) {
 
 	return false, nil
 }
+
+func (f *Flock) setFh() error {
+	// open a new os.File instance
+	// create it if it doesn't exist, and open the file read-only.
+	flags := os.O_CREATE | os.O_RDONLY
+	fh, err := os.OpenFile(f.path, flags, os.FileMode(0600))
+	if err != nil {
+		// retry for directory
+		errno := err.(*os.PathError).Err.(syscall.Errno)
+		if errno == syscall.EISDIR {
+			fh, err = os.OpenFile(f.path, os.O_RDONLY, os.FileMode(0600))
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// set the filehandle on the struct
+	f.fh = fh
+	return nil
+}
